@@ -1,0 +1,18 @@
+# Node
+node_modules/
+extension/dist/
+extension/.vite/
+*.log
+
+# Java
+backend/target/
+*.class
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Env
+.env
+.env.local

@@ -1,0 +1,13 @@
+server:
+  port: 8080
+
+claude:
+  api-key: ${ANTHROPIC_API_KEY:}
+  model: claude-3-5-sonnet-latest
+  base-url: https://api.anthropic.com
+  max-tokens: 1024
+
+cors:
+  allowed-origins:
+    - chrome-extension://*
+    - http://localhost:5173
