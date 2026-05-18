@@ -10,14 +10,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Thin wrapper over Anthropic's Messages API.
+ * Thin wrapper over Google's Gemini generateContent API.
  *
- * Returns a single response string. Streaming (SSE) is intentionally
- * deferred — see {@code useHintStream} on the frontend, which is shaped
- * to swap to SSE without changing callers.
+ * Returns a single response string. Streaming is deferred — see
+ * {@code useHintStream} on the frontend.
  */
 @Service
-public class ClaudeService {
+public class GeminiService {
 
     private static final String SYSTEM_PROMPT = """
             You are a Socratic coding tutor. The student is solving a competitive programming
@@ -31,11 +30,11 @@ public class ClaudeService {
     private final String model;
     private final int maxTokens;
 
-    public ClaudeService(
-            @Value("${claude.api-key}") String apiKey,
-            @Value("${claude.model}") String model,
-            @Value("${claude.base-url}") String baseUrl,
-            @Value("${claude.max-tokens}") int maxTokens
+    public GeminiService(
+            @Value("${gemini.api-key}") String apiKey,
+            @Value("${gemini.model}") String model,
+            @Value("${gemini.base-url}") String baseUrl,
+            @Value("${gemini.max-tokens}") int maxTokens
     ) {
         this.apiKey = apiKey;
         this.model = model;
@@ -45,24 +44,26 @@ public class ClaudeService {
 
     public String getHint(HintRequest req) {
         if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException("ANTHROPIC_API_KEY is not configured");
+            throw new IllegalStateException("GEMINI_API_KEY is not configured");
         }
 
         String userMessage = buildUserMessage(req);
 
+        // Gemini generateContent request body
         Map<String, Object> body = Map.of(
-                "model", model,
-                "max_tokens", maxTokens,
-                "system", SYSTEM_PROMPT,
-                "messages", List.of(
-                        Map.of("role", "user", "content", userMessage)
+                "contents", List.of(
+                        Map.of("role", "user", "parts", List.of(Map.of("text", userMessage)))
+                ),
+                "systemInstruction", Map.of(
+                        "parts", List.of(Map.of("text", SYSTEM_PROMPT))
+                ),
+                "generationConfig", Map.of(
+                        "maxOutputTokens", maxTokens
                 )
         );
 
         Map<?, ?> resp = http.post()
-                .uri("/v1/messages")
-                .header("x-api-key", apiKey)
-                .header("anthropic-version", "2023-06-01")
+                .uri("/v1beta/models/{model}:generateContent?key={key}", model, apiKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
@@ -89,13 +90,17 @@ public class ClaudeService {
     @SuppressWarnings("unchecked")
     private static String extractText(Map<?, ?> resp) {
         if (resp == null) return "";
-        Object content = resp.get("content");
-        if (!(content instanceof List<?> blocks) || blocks.isEmpty()) return "";
-        Object first = blocks.get(0);
-        if (first instanceof Map<?, ?> block) {
-            Object text = ((Map<String, Object>) block).get("text");
-            return text == null ? "" : text.toString();
-        }
-        return "";
+        Object candidates = resp.get("candidates");
+        if (!(candidates instanceof List<?> list) || list.isEmpty()) return "";
+        Object first = list.get(0);
+        if (!(first instanceof Map<?, ?> candidate)) return "";
+        Object content = candidate.get("content");
+        if (!(content instanceof Map<?, ?> contentMap)) return "";
+        Object parts = contentMap.get("parts");
+        if (!(parts instanceof List<?> partsList) || partsList.isEmpty()) return "";
+        Object part = partsList.get(0);
+        if (!(part instanceof Map<?, ?> partMap)) return "";
+        Object text = partMap.get("text");
+        return text == null ? "" : text.toString();
     }
 }

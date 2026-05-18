@@ -2,7 +2,7 @@ package com.codingtutor.controller;
 
 import com.codingtutor.model.HintRequest;
 import com.codingtutor.model.HintResponse;
-import com.codingtutor.service.ClaudeService;
+import com.codingtutor.service.GeminiService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -13,15 +13,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api")
 public class HintController {
 
-    private final ClaudeService claude;
+    private final GeminiService gemini;
 
-    public HintController(ClaudeService claude) {
-        this.claude = claude;
+    public HintController(GeminiService gemini) {
+        this.gemini = gemini;
     }
 
     @PostMapping("/hint")
     public HintResponse hint(@Valid @RequestBody HintRequest request) {
-        String hint = claude.getHint(request);
+        String hint = gemini.getHint(request);
         return new HintResponse(hint);
     }
 }
